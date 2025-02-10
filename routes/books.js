@@ -207,6 +207,23 @@ router.get('/', async (req, res) => {
         });
 });
 
+router.get("/score", async (req, res) => {
+    const recommendations = await book_recommendations.findAll();
+    const matrix = recommendations.map(rec => rec.dataValues);
+        
+    const stochasticMatrix = {};
+    matrix.forEach(book => {
+        const totalScore = book.recommendations.reduce((sum, rec) => sum + rec.score, 0);
+        stochasticMatrix[book.book_id] = book.recommendations.map(rec => ({
+            id: rec.id,
+            probability: rec.score / totalScore
+        }));
+    });
+    BookService.computePageRank(stochasticMatrix);
+    
+    res.json(stochasticMatrix);
+});
+
 router.get('/:id', (req, res) => {
     const id = req.params.id;
     books.findByPk(id)

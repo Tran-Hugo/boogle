@@ -51,6 +51,44 @@ class BookService {
         const tokenizer = new natural.WordTokenizer();
         return tokenizer.tokenize(text);
     }
+
+    static computePageRank(matrix, dampingFactor = 0.85, maxIterations = 100, tolerance = 1e-6){
+        const books = Object.keys(matrix);
+        const n = books.length;
+
+        let ranks = {};
+        books.forEach(book => ranks[book] = 1 / n);
+
+        for (let iter = 0; iter < maxIterations; iter++) {
+            let newRanks = {};
+            let diff = 0;
+    
+            books.forEach(book => {
+                let sum = 0;
+                books.forEach(otherBook => {
+                    const outgoingLinks = matrix[otherBook] || [];
+                    const link = outgoingLinks.find(rec => rec.id === book);
+                    
+                    if (link) {
+                        sum += ranks[otherBook] * link.probability;
+                    }
+                });
+    
+                newRanks[book] = (1 - dampingFactor) / n + dampingFactor * sum;
+                diff += Math.abs(newRanks[book] - ranks[book]);
+            });
+    
+            ranks = newRanks;
+
+        if (diff < tolerance) {
+            console.log("converged after", iter, "iterations");
+            break;
+        }
+    }
+    
+        console.log(ranks);
+        return ranks;
+    }
 }
 
 module.exports = BookService;
