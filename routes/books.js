@@ -27,7 +27,7 @@ router.get('/fetch', async (req, res) => {
             const image = await BookService.fetch_image(item.formats, item.title);
             
             let book = {
-                titre: item.title,
+                title: item.title,
                 authors: item.authors,
                 summary: summary,
                 content: content,
