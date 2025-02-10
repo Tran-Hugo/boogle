@@ -219,7 +219,14 @@ router.get("/score", async (req, res) => {
             probability: rec.score / totalScore
         }));
     });
-    BookService.computePageRank(stochasticMatrix);
+    const ranks = BookService.computePageRank(stochasticMatrix);
+
+    for (const book in ranks) {
+        const bookRank = ranks[book];
+        const bookToUpdate = await books.findByPk(book);
+        bookToUpdate.score = bookRank;
+        await bookToUpdate.save();
+    }
     
     res.json(stochasticMatrix);
 });

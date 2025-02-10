@@ -80,13 +80,12 @@ class BookService {
     
             ranks = newRanks;
 
-        if (diff < tolerance) {
-            console.log("converged after", iter, "iterations");
-            break;
+            if (diff < tolerance) {
+                console.log("converged after", iter, "iterations");
+                break;
+            }
         }
-    }
     
-        console.log(ranks);
         return ranks;
     }
 }

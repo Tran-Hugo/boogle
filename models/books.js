@@ -23,6 +23,10 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING,
             allowNull: true,
         },
+        score : {
+            type: DataTypes.FLOAT,
+            defaultValue: 0
+        }
     });
     
     return books;
