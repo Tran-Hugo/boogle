@@ -1,27 +1,47 @@
 const { Router } = require('express');
-const { books, sequelize } = require('../models');
+const { books, inverted_indexing } = require('../models');
 const { Op } = require('sequelize');
+const { rankByRelevance } = require('./classement');
 
 const router = Router();
 
 async function searchBooks(query) {
     const lowerCaseQuery = query.toLowerCase();
-    return await books.findAll({
+    const terms = await inverted_indexing.findAll({
         where: {
-            [Op.or]: [
-                { title: { [Op.like]: `%${lowerCaseQuery}%` } },
-                { summary: { [Op.like]: `%${lowerCaseQuery}%` } }
-            ]
+            term: { [Op.like]: `%${lowerCaseQuery}%` }
         }
     });
+
+    const bookIds = terms.reduce((ids, term) => {
+        return ids.concat(term.list.map(item => item.id));
+    }, []);
+
+    const results = await books.findAll({
+        where: {
+            id: { [Op.in]: bookIds }
+        }
+    });
+
+    return rankByRelevance(results, query);
 }
 
 async function advancedSearchBooks(regex) {
-    const regexPattern = new RegExp(regex, 'i'); 
-    const allBooks = await books.findAll();
-    return allBooks.filter(book => {
-        return regexPattern.test(book.title) || regexPattern.test(book.summary) || regexPattern.test(book.content);
+    const regexPattern = new RegExp(regex, 'i');
+    const terms = await inverted_indexing.findAll();
+
+    const matchingTerms = terms.filter(term => regexPattern.test(term.term));
+    const bookIds = matchingTerms.reduce((ids, term) => {
+        return ids.concat(term.list.map(item => item.id));
+    }, []);
+
+    const results = await books.findAll({
+        where: {
+            id: { [Op.in]: bookIds }
+        }
     });
+
+    return rankByRelevance(results, regex);
 }
 
 router.get('/', async (req, res) => {
