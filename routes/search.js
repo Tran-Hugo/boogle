@@ -1,14 +1,36 @@
 const { Router } = require('express');
 const { books, inverted_indexing, tf_idfs, book_recommendations } = require('../models');
 const { Op } = require('sequelize');
+const natural = require('natural');
+const levenshtein = natural.LevenshteinDistance;
 
 const router = Router();
+
+async function suggestTerm(query) {
+    const terms = await inverted_indexing.findAll({attributes: ['term']});
+    
+    const suggestions = terms.map(term => {
+        return {
+            term: term.term,
+            distance: levenshtein(query, term.term)
+        }
+    });
+
+    suggestions.sort((a, b) => a.distance - b.distance);
+    return suggestions[0].term;
+}
 
 async function searchBooks(query,res) {
     let books_list = await tf_idfs.findOne({ where: { term: query } });
 
     if (books_list === null) {
-        res.status(200).json({ books: [], recommendations: [] });
+        const termSuggestion = await suggestTerm(query);
+        try {
+            res.status(200).json({ books: [], recommendations: [], termSuggestion: termSuggestion });
+            return "No results found";
+        } catch (error) {
+            console.error(error);
+        }
     }
 
     let booksIds = books_list.stats.sort((a, b) => b.count - a.count).map(rec => rec.id).slice(0, 10);
@@ -112,6 +134,9 @@ router.get('/', async (req, res) => {
     query = query.toLowerCase();
     try {
         const results = await searchBooks(query, res);
+        if (results === "No results found") {
+            return;
+        }
         res.status(200).json(results);
     } catch (error) {
         res.status(500).json({ error: error.message });
