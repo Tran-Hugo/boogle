@@ -38,20 +38,7 @@ function calculatePageRank(links, dampingFactor = 0.85, epsilon = 0.0001, maxIte
     return ranks;
 }
 
-function rankByRelevance(results, query) {
-    results.forEach(book => {
-        const occurrences = countOccurrences(book.title, query) +
-                            countOccurrences(book.summary, query) +
-                            countOccurrences(book.content, query);
-        book.relevanceScore = occurrences;
-    });
-
-    results.sort((a, b) => b.relevanceScore - a.relevanceScore);
-    return results;
-}
-
 module.exports = {
     countOccurrences,
-    calculatePageRank,
-    rankByRelevance
+    calculatePageRank
 };
