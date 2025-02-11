@@ -1,7 +1,6 @@
 const { Router } = require('express');
 const { books, inverted_indexing, tf_idfs, book_recommendations } = require('../models');
 const { Op } = require('sequelize');
-const { rankByRelevance } = require('./classement');
 
 const router = Router();
 
@@ -54,7 +53,7 @@ async function searchBooks(query,res) {
     return response;
 }
 
-async function advancedSearchBooks(regex) {
+async function advancedSearchBooks(regex, res) {
     const regexPattern = new RegExp(regex, 'i');
     const terms = await inverted_indexing.findAll();
 
@@ -66,10 +65,43 @@ async function advancedSearchBooks(regex) {
     const results = await books.findAll({
         where: {
             id: { [Op.in]: bookIds }
+        },
+        attributes: ['id', 'title', 'authors', 'content', 'score', 'image']
+    });
+
+    results.forEach(book => {
+        const index = book.content.toLowerCase().search(regexPattern);
+        const start = Math.max(0, index - 200);
+        const end = Math.min(book.content.length, index + 200);
+        book.content = book.content.slice(start, end) + '...';
+    });
+
+    const tfidfCoeff = 0.7;
+    const scoreCoeff = 0.3;
+
+    let books_list = results.map(book => {
+        const match = matchingTerms.find(term => term.list.some(item => item.id === book.id));
+        const bookTfidf = match ? match.list.find(item => item.id === book.id).count : 0;
+        const bookScore = book.score;
+
+        return {
+            ...book.dataValues,
+            final_score: (tfidfCoeff * bookTfidf) + (scoreCoeff * bookScore)
         }
     });
 
-    return rankByRelevance(results, regex);
+    books_list.sort((a, b) => b.final_score - a.final_score);
+
+    let recommendations = await book_recommendations.findOne({ where: { book_id: books_list[0].id } });
+    recommendations = recommendations.recommendations.sort((a, b) => b.score - a.score).map(rec => rec.id).slice(0, 5);
+    recommendations = await books.findAll({ where: { id: recommendations }, attributes: ['id', 'title', 'authors', 'score', 'image'] });
+    recommendations = recommendations.sort((a, b) => b.page_rank - a.page_rank);
+
+    response = {
+        books: books_list,
+        recommendations: recommendations
+    }
+    return response;
 }
 
 router.get('/', async (req, res) => {
