@@ -78,7 +78,13 @@ async function searchBooks(query, res) {
     let books_list = await tf_idfs.findOne({ where: { term: query } });
 
     if (books_list === null) {
-        res.status(200).json({ books: [], recommendations: [] });
+        const termSuggestion = await suggestTerm(query);
+        try {
+            res.status(200).json({ books: [], recommendations: [], termSuggestion: termSuggestion });
+            return "No results found";
+        } catch (error) {
+            console.error(error);
+        }
     }
 
     let booksIds = books_list.stats.sort((a, b) => b.count - a.count).map(rec => rec.id).slice(0, 10);
