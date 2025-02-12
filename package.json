@@ -4,6 +4,7 @@
     "cheerio": "^1.0.0",
     "express": "^4.21.2",
     "merkle-patricia-tree": "^4.2.4",
+    "mnemonist": "^0.40.2",
     "natural": "^8.0.1",
     "sequelize": "^6.37.5",
     "sqlite3": "^5.1.7"
