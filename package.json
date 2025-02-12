@@ -2,6 +2,7 @@
   "dependencies": {
     "axios": "^1.7.9",
     "cheerio": "^1.0.0",
+    "cors": "^2.8.5",
     "express": "^4.21.2",
     "merkle-patricia-tree": "^4.2.4",
     "mnemonist": "^0.40.2",

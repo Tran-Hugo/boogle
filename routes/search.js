@@ -5,6 +5,20 @@ const Trie = require('mnemonist/trie');
 
 const router = Router();
 
+async function suggestTerm(query) {
+    const terms = await inverted_indexing.findAll({attributes: ['term']});
+    
+    const suggestions = terms.map(term => {
+        return {
+            term: term.term,
+            distance: levenshtein(query, term.term)
+        }
+    });
+
+    suggestions.sort((a, b) => a.distance - b.distance);
+    return suggestions[0].term;
+}
+
 // Créer un nouveau Trie
 const trie = new Trie();
 
@@ -64,7 +78,7 @@ async function searchBooks(query, res) {
     let books_list = await tf_idfs.findOne({ where: { term: query } });
 
     if (books_list === null) {
-        return res.status(200).json({ books: [], recommendations: [] });
+        res.status(200).json({ books: [], recommendations: [] });
     }
 
     let booksIds = books_list.stats.sort((a, b) => b.count - a.count).map(rec => rec.id).slice(0, 10);
@@ -168,6 +182,9 @@ router.get('/', async (req, res) => {
     query = query.toLowerCase();
     try {
         const results = await searchBooks(query, res);
+        if (results === "No results found") {
+            return;
+        }
         res.status(200).json(results);
     } catch (error) {
         res.status(500).json({ error: error.message });
