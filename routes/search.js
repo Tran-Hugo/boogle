@@ -1,12 +1,15 @@
 const { Router } = require('express');
-const { books, inverted_indexing, tf_idfs, book_recommendations } = require('../models');
+const { books, invertedIndexing, tf_idfs, book_recommendations } = require('../models');
 const { Op } = require('sequelize');
 const Trie = require('mnemonist/trie');
+const natural = require('natural');
+const { all } = require('axios');
+const levenshtein = natural.LevenshteinDistance;
 
 const router = Router();
 
 async function suggestTerm(query) {
-    const terms = await inverted_indexing.findAll({attributes: ['term']});
+    const terms = await invertedIndexing.findAll({attributes: ['term']});
     
     const suggestions = terms.map(term => {
         return {
@@ -22,12 +25,16 @@ async function suggestTerm(query) {
 // Créer un nouveau Trie
 const trie = new Trie();
 
-// Remplir le Trie avec les termes de la table inverted_indexing
+// Remplir le Trie avec les termes de la table invertedIndexing
 async function populateTrie() {
-    const allTerms = await inverted_indexing.findAll({ attributes: ['term'] });
+    console.log("populating trie");
+    const allTerms = await invertedIndexing.findAll({ attributes: ['term'] });
+    console.log(allTerms.length);
+    
     allTerms.forEach(term => {
         trie.add(term.term.toLowerCase());
     });
+    console.log("done populating trie");
 }
 
 // Appeler la fonction pour remplir le Trie
@@ -87,7 +94,7 @@ async function searchBooks(query, res) {
         }
     }
 
-    let booksIds = books_list.stats.sort((a, b) => b.count - a.count).map(rec => rec.id).slice(0, 10);
+    let booksIds = books_list.stats.sort((a, b) => b.count - a.count).map(rec => rec.id).slice(0, 20);
     
     const results = await books.findAll({
         where: { id: booksIds },
@@ -101,18 +108,27 @@ async function searchBooks(query, res) {
         book.content = book.content.slice(start, end) + '...';
     });
     
-    const tfidfCoeff = 0.7;
-    const scoreCoeff = 0.3;
+    const tfidfCoeff = 0.5;
+    const scoreCoeff = 0.5;
+
+    const maxTfidf = Math.max(...results.map(book => books_list.stats.find(rec => String(rec.id) === String(book.id))?.score ?? 0));
+    const maxScore = Math.max(...results.map(book => book.score));
 
     books_list = results.map(book => {
         const match = books_list.stats.find(rec => String(rec.id) === String(book.id));
-        const bookTfidf = match?.count ?? 0;
+        
+        const bookTfidf = match?.score ?? 0;
         const bookScore = book.score;
+
+        const normTfidf = maxTfidf ? bookTfidf / maxTfidf : 0;
+        const normScore = maxScore ? bookScore / maxScore : 0;
+
+        const final_score = (tfidfCoeff * normTfidf) + (scoreCoeff * normScore);
 
         return {
             ...book.dataValues,
-            final_score: (tfidfCoeff * bookTfidf) + (scoreCoeff * bookScore)
-        }
+            final_score
+        };
     });
 
     books_list.sort((a, b) => b.final_score - a.final_score);
@@ -131,7 +147,7 @@ async function searchBooks(query, res) {
 
 async function advancedSearchBooks(regex, res) {
     const regexPattern = new RegExp(regex, 'i');
-    const terms = await inverted_indexing.findAll();
+    const terms = await invertedIndexing.findAll();
 
     const matchingTerms = terms.filter(term => regexPattern.test(term.term));
     const bookIds = matchingTerms.reduce((ids, term) => {

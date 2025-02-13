@@ -69,7 +69,7 @@ class BookService {
                     const outgoingLinks = matrix[otherBook] || [];
                     const link = outgoingLinks.find(rec => rec.id === book);
                     
-                    if (link) {
+                    if (link && !isNaN(link.probability)) {
                         sum += ranks[otherBook] * link.probability;
                     }
                 });

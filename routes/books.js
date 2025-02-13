@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const axios = require('axios');
 
-const { books, inverted_indexing, tf_idfs, book_recommendations } = require('../models');
+const { books, invertedIndexing, tf_idfs, book_recommendations } = require('../models');
 const BookService = require('../services/book');
 
 const router = Router();
@@ -44,9 +44,9 @@ router.get('/fetch', async (req, res) => {
             }
 
             for (const token in indexes) {
-                const term = await inverted_indexing.findOne({ where: { term: token } });
+                const term = await invertedIndexing.findOne({ where: { term: token } });
                 if (term === null) {
-                    await inverted_indexing.create({
+                    await invertedIndexing.create({
                         term: token,
                         list: [{
                             id: book.id,
@@ -70,7 +70,7 @@ router.get('/fetch', async (req, res) => {
 });
 
 router.get('/tf-idf', async (req, res) => {
-    const terms = await inverted_indexing.findAll();
+    const terms = await invertedIndexing.findAll();
     const books_list = await books.findAll();
 
     const tfs = {};
@@ -120,7 +120,7 @@ router.get('/tf-idf', async (req, res) => {
 // EN_COURS
 router.get('/cosine', async (req, res) => {
     // select just the terms 
-    const tokens = await inverted_indexing.findAll({
+    const tokens = await invertedIndexing.findAll({
         attributes: ['term'],
     });
     const idfs = await tf_idfs.findAll();
