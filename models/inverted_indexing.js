@@ -11,6 +11,7 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING,
             allowNull: false,
             unique: true,
+            indexes: [{ unique: false, fields: ['term'] }]
         },
         list : {
             type: DataTypes.JSON,

@@ -147,9 +147,11 @@ async function searchBooks(query, res) {
 
 async function advancedSearchBooks(regex, res) {
     const regexPattern = new RegExp(regex, 'i');
-    const terms = await invertedIndexing.findAll();
+    const sqlRegex = regex.replace(/\./g, '%');
+    const matchingTerms = await invertedIndexing.findAll({
+        where: { term: { [Op.like]: `${sqlRegex}%` } } 
+    });
 
-    const matchingTerms = terms.filter(term => regexPattern.test(term.term));
     const bookIds = matchingTerms.reduce((ids, term) => {
         return ids.concat(term.list.map(item => item.id));
     }, []);
